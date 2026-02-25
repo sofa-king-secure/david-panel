@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+
+# Windows
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# Secrets — NEVER commit these
+*.key
+*.pem
+secrets.json
+config_local.py
+.env.local
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
