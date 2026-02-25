@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>HUD // DTMB-MCS DASHBOARD</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #000000;
+    --panel: #050a05;
+    --border: #0f2a0f;
+    --green: #00ff41;
+    --green-dim: #007a1f;
+    --green-glow: rgba(0,255,65,0.15);
+    --amber: #ffb300;
+    --amber-dim: #7a5500;
+    --red: #ff2222;
+    --red-dim: #7a0808;
+    --cyan: #00e5ff;
+    --cyan-dim: #005a66;
+    --white: #e8f5e9;
+    --dim: #334433;
+    --scanline: rgba(0,255,65,0.03);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width: 1920px;
+    height: 440px;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--green);
+    cursor: none;
+  }
+
+  /* CRT scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--scanline) 2px,
+      var(--scanline) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    top:0;left:0;width:100%;height:100%;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 220px 260px 1fr 1fr 1fr 1fr;
+    grid-template-rows: 28px 1fr;
+    width: 1920px;
+    height: 440px;
+    gap: 0;
+    border: 1px solid var(--green-dim);
+  }
+
+  /* TOP STATUS BAR */
+  #topbar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    background: #010e01;
+    border-bottom: 1px solid var(--green-dim);
+    padding: 0 12px;
+    gap: 24px;
+    font-size: 10px;
+    color: var(--green-dim);
+    letter-spacing: 2px;
+  }
+  #topbar .logo {
+    color: var(--green);
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px var(--green);
+  }
+  #topbar .sep { color: var(--dim); }
+  #topbar .stat { color: var(--amber); }
+  .blink { animation: blink 1.2s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* PANELS */
+  .panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background: var(--panel);
+  }
+  .panel:last-child { border-right: none; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 5px;
+    border-bottom: 1px solid var(--border);
+    background: #02100208;
+    flex-shrink: 0;
+  }
+  .panel-header .icon { font-size: 11px; }
+  .panel-header .label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .panel-header .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s ease-in-out infinite; }
+  .dot-amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse 2s ease-in-out infinite 0.3s; }
+  .dot-red { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1.5s ease-in-out infinite; }
+  .dot-cyan { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse 2s ease-in-out infinite 0.6s; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .panel-body { flex: 1; overflow: hidden; padding: 0; position: relative; }
+
+  /* ===== CLOCK PANEL ===== */
+  #panel-clock .panel-header .label { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  #clock-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 8px 6px;
+  }
+  #clock-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 38px;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  #clock-secs {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    color: var(--green-dim);
+    letter-spacing: 3px;
+    margin-top: 2px;
+  }
+  #clock-date {
+    font-size: 10px;
+    color: var(--green-dim);
+    letter-spacing: 2px;
+    margin-top: 6px;
+    text-align: center;
+  }
+  #clock-day {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: 3px;
+    margin-top: 3px;
+  }
+  #clock-ampm {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green-dim);
+    letter-spacing: 4px;
+    margin-top: 1px;
+  }
+  #clock-gmt {
+    font-size: 8px;
+    color: #1a3a1a;
+    letter-spacing: 2px;
+    margin-top: 4px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  #uptime {
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ===== WEATHER PANEL ===== */
+  #panel-weather .panel-header .label { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  #weather-body {
+    padding: 5px 8px 4px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+  #weather-current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .wx-icon { font-size: 35px; line-height: 1; filter: drop-shadow(0 0 6px rgba(0,229,255,0.5)); }
+  .wx-temp {
+    font-family: 'Orbitron', monospace;
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 12px var(--cyan);
+    line-height: 1;
+  }
+  .wx-info { font-size: 11px; color: var(--white); line-height: 1.6; }
+  .wx-info .wx-desc { color: var(--cyan); font-size: 12px; font-weight: 600; }
+
+  /* Forecast slideshow */
+  #wx-slideshow-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--cyan-dim);
+    border-radius: 3px;
+    background: rgba(0,229,255,0.03);
+  }
+  .wx-slide {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 6px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .wx-slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+  .wx-slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+  .wx-slide-dayname {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 8px var(--cyan);
+    letter-spacing: 3px;
+  }
+  .wx-slide-icon { font-size: 45px; line-height: 1; filter: drop-shadow(0 0 8px rgba(0,229,255,0.4)); }
+  .wx-slide-temps {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .wx-slide-hi {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--amber);
+    text-shadow: 0 0 10px var(--amber);
+  }
+  .wx-slide-lo {
+    font-family: 'Orbitron', monospace;
+    font-size: 17px;
+    color: var(--dim);
+  }
+  .wx-slide-desc {
+    font-size: 12px;
+    color: var(--white);
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  .wx-slide-pp {
+    font-size: 12px;
+    color: #5599ff;
+    letter-spacing: 1px;
+  }
+  .wx-slide-dots {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+  }
+  .wx-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--cyan-dim);
+    transition: background 0.3s;
+  }
+  .wx-dot.on { background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+
+  /* ===== NEWS PANELS ===== */
+  .news-panel .panel-header .label { color: var(--white); }
+  #panel-usnews .panel-header .label { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  #panel-security .panel-header .label { color: var(--red); text-shadow: 0 0 8px var(--red); }
+  #panel-tech .panel-header .label { color: var(--amber); text-shadow: 0 0 8px var(--amber); }
+  #panel-local .panel-header .label { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+
+  .feed-list {
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .feed-scroll {
+    position: absolute;
+    width: 100%;
+    animation: none;
+  }
+
+  .feed-item {
+    padding: 7px 10px 7px 10px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+  }
+  .feed-item:hover { background: rgba(0,255,65,0.05); }
+  .feed-item:hover .feed-item-title { text-decoration: underline; text-decoration-color: rgba(255,255,255,0.3); }
+  a.feed-item { color: inherit; text-decoration: none; }
+
+  .feed-item-title {
+    font-size: 13px;
+    line-height: 1.4;
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 400;
+    color: var(--white);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .feed-item-meta {
+    font-size: 10px;
+    color: var(--dim);
+    margin-top: 3px;
+    display: flex;
+    gap: 8px;
+    letter-spacing: 0.5px;
+  }
+  .feed-item-source { color: var(--green-dim); }
+
+  #panel-security .feed-item-title { color: #ffaaaa; }
+  #panel-security .feed-item-source { color: var(--red-dim); }
+  #panel-security .feed-item:hover { background: rgba(255,34,34,0.05); }
+
+  #panel-tech .feed-item-title { color: #ffe0a0; }
+  #panel-tech .feed-item-source { color: var(--amber-dim); }
+  #panel-tech .feed-item:hover { background: rgba(255,179,0,0.05); }
+
+  #panel-local .feed-item-title { color: #aaeeff; }
+  #panel-local .feed-item-source { color: var(--cyan-dim); }
+  #panel-local .feed-item:hover { background: rgba(0,229,255,0.05); }
+
+  .feed-status {
+    padding: 20px 10px;
+    font-size: 9px;
+    color: var(--dim);
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .alert-badge {
+    display: inline-block;
+    background: var(--red);
+    color: #000;
+    font-size: 7px;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    padding: 1px 4px;
+    letter-spacing: 1px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* Corner decorations */
+  .corner-tl, .corner-br {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-color: var(--green-dim);
+    border-style: solid;
+    opacity: 0.5;
+  }
+  .corner-tl { top:32px; left:0; border-width: 2px 0 0 2px; }
+  .corner-br { bottom:0; right:0; border-width: 0 2px 2px 0; }
+
+  /* Loading animation */
+  @keyframes loading-dots {
+    0%{content:'FETCHING.'} 33%{content:'FETCHING..'} 66%{content:'FETCHING...'} 100%{content:'FETCHING.'}
+  }
+  .loading::after {
+    content: 'FETCHING.';
+    animation: loading-dots 1.2s step-end infinite;
+  }
+
+  /* Scroll animation for feeds */
+  @keyframes scrollUp {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(var(--scroll-dist)); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP STATUS BAR -->
+  <div id="topbar">
+    <span class="logo">DTMB-MCS // TACTICAL HUD</span>
+    <span class="sep">|</span>
+    <span>SYS:<span class="stat" id="tb-status">NOMINAL</span></span>
+    <span class="sep">|</span>
+    <span>FEEDS:<span class="stat" id="tb-feeds">0/4</span></span>
+    <span class="sep">|</span>
+    <span>LOC:<span class="stat">KALAMAZOO·MI·US</span></span>
+    <span class="sep">|</span>
+    <span>WX·SRC:<span class="stat">OPEN-METEO·API</span></span>
+    <span class="sep">|</span>
+    <span id="tb-time" class="stat">--:--:--</span>
+    <span class="sep" style="margin-left:auto">|</span>
+    <span style="color:var(--red)" class="blink">● LIVE</span>
+  </div>
+
+  <!-- CLOCK PANEL -->
+  <div class="panel" id="panel-clock">
+    <div class="panel-header">
+      <span class="icon">◈</span>
+      <span class="label">CHRONO</span>
+      <span class="dot dot-green"></span>
+    </div>
+    <div class="panel-body">
+      <div id="clock-main">
+        <div id="clock-time">--:--</div>
+        <div id="clock-ampm">--</div>
+        <div id="clock-secs">:--</div>
+        <div id="clock-day">-------</div>
+        <div id="clock-date">--- -- · ----</div>
+        <div id="clock-gmt">GMT --:--</div>
+        <div id="uptime">SESSION: <span id="uptime-val">00:00:00</span></div>
+      </div>
+    </div>
+    <div class="corner-tl"></div>
+    <div class="corner-br"></div>
+  </div>
+
+  <!-- WEATHER PANEL -->
+  <div class="panel" id="panel-weather">
+    <div class="panel-header">
+      <span class="icon">◉</span>
+      <span class="label" style="color:var(--cyan)">ENVIRON // KZOO</span>
+      <span class="dot dot-cyan"></span>
+    </div>
+    <div class="panel-body">
+      <div id="weather-body">
+        <div id="weather-current">
+          <div class="wx-icon" id="wx-icon">⟳</div>
+          <div class="wx-temp" id="wx-temp">--°</div>
+          <div class="wx-info">
+            <div class="wx-desc" id="wx-desc">LOADING</div>
+            <div>WIND: <span id="wx-wind">--</span> mph</div>
+            <div>HUM: <span id="wx-hum">--</span>% · FEELS: <span id="wx-feels">--</span>°</div>
+          </div>
+        </div>
+        <div id="wx-slideshow-wrap">
+          <!-- JS populated slideshow -->
+          <div class="wx-slide-dots" id="wx-dots"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- US/WORLD NEWS -->
+  <div class="panel news-panel" id="panel-usnews">
+    <div class="panel-header">
+      <span class="icon">◈</span>
+      <span class="label">US · WORLD NEWS</span>
+      <span class="dot dot-green"></span>
+    </div>
+    <div class="panel-body">
+      <div class="feed-list" id="feed-usnews">
+        <div class="feed-status loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="panel news-panel" id="panel-security">
+    <div class="panel-header">
+      <span class="icon">⚠</span>
+      <span class="label">SEC · THREATS</span>
+      <span class="dot dot-red"></span>
+    </div>
+    <div class="panel-body">
+      <div class="feed-list" id="feed-security">
+        <div class="feed-status loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH NEWS -->
+  <div class="panel news-panel" id="panel-tech">
+    <div class="panel-header">
+      <span class="icon">◈</span>
+      <span class="label">IT · TECH</span>
+      <span class="dot dot-amber"></span>
+    </div>
+    <div class="panel-body">
+      <div class="feed-list" id="feed-tech">
+        <div class="feed-status loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCAL NEWS -->
+  <div class="panel news-panel" id="panel-local">
+    <div class="panel-header">
+      <span class="icon">◉</span>
+      <span class="label">LOCAL · MI</span>
+      <span class="dot dot-cyan"></span>
+    </div>
+    <div class="panel-body">
+      <div class="feed-list" id="feed-local">
+        <div class="feed-status loading"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── CLOCK ───────────────────────────────────────────────────────────────
+// ─── USER CONFIG ─────────────────────────────────────────────────────────
+// Scroll speed: milliseconds between each headline advance (per panel)
+// 4000 = fast, 7000 = comfortable read, 12000 = slow
+const SCROLL_INTERVAL_MS = 60000; // 60 seconds — full page flip
+// ─────────────────────────────────────────────────────────────────────────
+
+const startTime = Date.now();
+const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+function updateClock() {
+  const now = new Date();
+  const h24 = now.getHours();
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  // GMT
+  const gH = String(now.getUTCHours()).padStart(2,'0');
+  const gM = String(now.getUTCMinutes()).padStart(2,'0');
+
+  document.getElementById('clock-time').textContent = `${h12}:${m}`;
+  document.getElementById('clock-ampm').textContent = ampm;
+  document.getElementById('clock-secs').textContent = `:${s}`;
+  document.getElementById('clock-day').textContent = DAYS[now.getDay()];
+  document.getElementById('clock-date').textContent = `${MONTHS[now.getMonth()]} ${String(now.getDate()).padStart(2,'0')} · ${now.getFullYear()}`;
+  document.getElementById('clock-gmt').textContent = `GMT ${gH}:${gM}`;
+  document.getElementById('tb-time').textContent = `${h12}:${m}:${s} ${ampm}`;
+
+  const elapsed = Math.floor((Date.now() - startTime)/1000);
+  const eh = String(Math.floor(elapsed/3600)).padStart(2,'0');
+  const em = String(Math.floor((elapsed%3600)/60)).padStart(2,'0');
+  const es = String(elapsed%60).padStart(2,'0');
+  document.getElementById('uptime-val').textContent = `${eh}:${em}:${es}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── WEATHER ─────────────────────────────────────────────────────────────
+// Kalamazoo, MI coords
+const WX_LAT = 42.2917;
+const WX_LON = -85.5872;
+
+const WMO_CODES = {
+  0:'☀️',1:'🌤️',2:'⛅',3:'☁️',
+  45:'🌫️',48:'🌫️',
+  51:'🌦️',53:'🌧️',55:'🌧️',
+  61:'🌧️',63:'🌧️',65:'🌧️',
+  71:'🌨️',73:'🌨️',75:'❄️',
+  80:'🌦️',81:'🌧️',82:'⛈️',
+  95:'⛈️',96:'⛈️',99:'⛈️'
+};
+const WMO_DESC = {
+  0:'CLEAR',1:'MOSTLY CLEAR',2:'PARTLY CLOUDY',3:'OVERCAST',
+  45:'FOG',48:'ICING FOG',
+  51:'LIGHT DRIZZLE',53:'DRIZZLE',55:'HEAVY DRIZZLE',
+  61:'LIGHT RAIN',63:'RAIN',65:'HEAVY RAIN',
+  71:'LIGHT SNOW',73:'SNOW',75:'HEAVY SNOW',
+  80:'RAIN SHOWERS',81:'RAIN SHOWERS',82:'HEAVY SHOWERS',
+  95:'THUNDERSTORM',96:'THUNDERSTORM',99:'SEVERE STORM'
+};
+
+async function fetchWeather() {
+  try {
+    // forecast_days=8 gives today + 7 future days; we skip index 0 (today) for the forecast row
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=8`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const c = d.current;
+    const daily = d.daily;
+
+    // current conditions — new API uses weather_code (not weathercode)
+    const curCode = c.weather_code ?? c.weathercode ?? 0;
+    document.getElementById('wx-icon').textContent = WMO_CODES[curCode] || '⛅';
+    document.getElementById('wx-temp').textContent = `${Math.round(c.temperature_2m)}°`;
+    document.getElementById('wx-desc').textContent = WMO_DESC[curCode] || 'UNKNOWN';
+    document.getElementById('wx-wind').textContent = Math.round(c.wind_speed_10m ?? c.windspeed_10m ?? 0);
+    document.getElementById('wx-hum').textContent = c.relative_humidity_2m ?? c.relativehumidity_2m ?? '--';
+    document.getElementById('wx-feels').textContent = Math.round(c.apparent_temperature ?? 0);
+
+    // Build slideshow data
+    const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const dayNamesShort = ['S','M','T','W','T','F','S'];
+    const slideWrap = document.getElementById('wx-slideshow-wrap');
+    const dotsEl = document.getElementById('wx-dots');
+    slideWrap.querySelectorAll('.wx-slide').forEach(el => el.remove());
+    dotsEl.innerHTML = '';
+
+    const count = Math.min(daily.time.length, 8);
+    const slides = [];
+
+    // ── Collect 7-day data ────────────────────────────────────────────────
+    const fcDays = [];
+    for(let i = 1; i < count; i++) {
+      const dt = new Date(daily.time[i] + 'T12:00:00');
+      const code = daily.weather_code ? daily.weather_code[i] : daily.weathercode[i];
+      fcDays.push({
+        name: dayNames[dt.getDay()],
+        short: dayNamesShort[dt.getDay()],
+        icon: WMO_CODES[code] || '⛅',
+        desc: WMO_DESC[code] || '',
+        hi: daily.temperature_2m_max[i] != null ? Math.round(daily.temperature_2m_max[i]) : null,
+        lo: daily.temperature_2m_min[i] != null ? Math.round(daily.temperature_2m_min[i]) : null,
+        pp: daily.precipitation_probability_max ? (daily.precipitation_probability_max[i] ?? 0) : 0
+      });
+    }
+
+    // ── SLIDE 0: SVG Chart ────────────────────────────────────────────────
+    function buildChartSlide(days) {
+      const W = 230, H = 130;
+      const PAD = { l: 28, r: 10, t: 16, b: 24 };
+      const cW = W - PAD.l - PAD.r;
+      const cH = H - PAD.t - PAD.b;
+      const n = days.length;
+      const xs = days.map((_, i) => PAD.l + (i / (n - 1)) * cW);
+
+      // Temp range
+      const allHi = days.map(d => d.hi).filter(v => v != null);
+      const allLo = days.map(d => d.lo).filter(v => v != null);
+      const tMax = Math.max(...allHi) + 5;
+      const tMin = Math.min(...allLo) - 5;
+      const tRange = tMax - tMin || 1;
+      const ty = v => PAD.t + cH - ((v - tMin) / tRange) * cH;
+
+      // Build hi line
+      const hiPts = days.map((d, i) => d.hi != null ? `${xs[i]},${ty(d.hi)}` : null).filter(Boolean);
+      const loPts = days.map((d, i) => d.lo != null ? `${xs[i]},${ty(d.lo)}` : null).filter(Boolean);
+
+      // Smooth polyline via simple catmull helper
+      function smoothLine(pts) {
+        if(pts.length < 2) return `M${pts[0]}`;
+        let d = `M${pts[0]}`;
+        for(let i = 0; i < pts.length - 1; i++) {
+          const [x0,y0] = pts[i].split(',').map(Number);
+          const [x1,y1] = pts[i+1].split(',').map(Number);
+          const cx = (x0+x1)/2;
+          d += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`;
+        }
+        return d;
+      }
+
+      const hiPath = smoothLine(hiPts);
+      const loPath = smoothLine(loPts);
+
+      // Precip bars (bottom zone, 0-30% of chart height)
+      const barW = Math.max(4, cW / n - 3);
+      const barMaxH = cH * 0.28;
+      const ppBars = days.map((d, i) => {
+        const bH = (d.pp / 100) * barMaxH;
+        const bY = PAD.t + cH - bH;
+        return `<rect x="${xs[i] - barW/2}" y="${bY}" width="${barW}" height="${bH}"
+          fill="#1a4488" opacity="0.75" rx="1"/>
+          <rect x="${xs[i] - barW/2}" y="${bY}" width="${barW}" height="1"
+          fill="#5599ff" opacity="0.9" rx="1"/>`;
+      }).join('');
+
+      // Day labels + hi/lo labels
+      const labels = days.map((d, i) => `
+        <text x="${xs[i]}" y="${H - 4}" text-anchor="middle"
+          font-family="'Orbitron',monospace" font-size="7" fill="#007a5a" letter-spacing="0">${d.short}</text>
+        ${d.hi != null ? `<text x="${xs[i]}" y="${ty(d.hi) - 4}" text-anchor="middle"
+          font-size="7" font-family="'Orbitron',monospace" fill="#ffb300">${d.hi}°</text>` : ''}
+      `).join('');
+
+      // Y-axis gridlines
+      const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+        const yv = Math.round(tMin + f * tRange);
+        const yp = ty(yv);
+        return `<line x1="${PAD.l}" y1="${yp}" x2="${W - PAD.r}" y2="${yp}"
+          stroke="#0a1f0a" stroke-width="0.5"/>
+          <text x="${PAD.l - 3}" y="${yp + 3}" text-anchor="end"
+          font-size="6" fill="#007a3a" font-family="'Share Tech Mono',monospace">${yv}</text>`;
+      }).join('');
+
+      // Precip % label on first bar
+      const ppLabel = `<text x="${PAD.l}" y="${PAD.t + cH - barMaxH - 3}"
+        font-size="6" fill="#334488" font-family="'Share Tech Mono',monospace">PRECIP%</text>`;
+
+      return `<div class="wx-slide" id="wx-chart-slide">
+        <div style="font-family:'Orbitron',monospace;font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:2px;text-shadow:0 0 6px var(--cyan)">7-DAY OUTLOOK</div>
+        <svg width="${W}" height="${H}" style="overflow:visible">
+          ${gridLines}
+          ${ppBars}
+          ${ppLabel}
+          <!-- lo band fill -->
+          <path d="${loPath}" fill="none" stroke="#005577" stroke-width="1.2" stroke-dasharray="3,2" opacity="0.7"/>
+          <!-- hi line -->
+          <path d="${hiPath}" fill="none" stroke="#ffb300" stroke-width="1.8" opacity="0.95"/>
+          <!-- dots on hi -->
+          ${days.map((d,i) => d.hi != null ? `<circle cx="${xs[i]}" cy="${ty(d.hi)}" r="2.5" fill="#ffb300" stroke="#000" stroke-width="0.8"/>` : '').join('')}
+          <!-- dots on lo -->
+          ${days.map((d,i) => d.lo != null ? `<circle cx="${xs[i]}" cy="${ty(d.lo)}" r="1.8" fill="#005577" stroke="#000" stroke-width="0.8"/>` : '').join('')}
+          ${labels}
+        </svg>
+        <div style="display:flex;gap:12px;font-size:8px;margin-top:2px">
+          <span style="color:#ffb300">— HIGH</span>
+          <span style="color:#336699;font-style:italic">- - LOW</span>
+          <span style="color:#5599ff">█ PRECIP%</span>
+        </div>
+      </div>`;
+    }
+
+    const chartSlide = document.createElement('div');
+    chartSlide.innerHTML = buildChartSlide(fcDays);
+    const chartEl = chartSlide.firstElementChild;
+    slideWrap.insertBefore(chartEl, dotsEl);
+    slides.push(chartEl);
+    const chartDot = document.createElement('div');
+    chartDot.className = 'wx-dot';
+    dotsEl.appendChild(chartDot);
+
+    // ── SLIDES 1-7: Individual day cards ──────────────────────────────────
+    for(const day of fcDays) {
+      const slide = document.createElement('div');
+      slide.className = 'wx-slide';
+      slide.innerHTML = `
+        <div class="wx-slide-dayname">${day.name}</div>
+        <div class="wx-slide-icon">${day.icon}</div>
+        <div class="wx-slide-temps">
+          <span class="wx-slide-hi">${day.hi ?? '--'}°</span>
+          <span class="wx-slide-lo">/ ${day.lo ?? '--'}°</span>
+        </div>
+        <div class="wx-slide-desc">${day.desc}</div>
+        <div class="wx-slide-pp">💧 ${day.pp}% PRECIP</div>
+      `;
+      slideWrap.insertBefore(slide, dotsEl);
+      slides.push(slide);
+      const dot = document.createElement('div');
+      dot.className = 'wx-dot';
+      dotsEl.appendChild(dot);
+    }
+
+    // ── Activate slideshow ────────────────────────────────────────────────
+    if(window._wxSlideTimer) clearInterval(window._wxSlideTimer);
+    let wxIdx = 0;
+    function showSlide(idx) {
+      slides.forEach((s, i) => {
+        s.classList.remove('active','exit');
+        if(i === idx) s.classList.add('active');
+        else if(i === (idx - 1 + slides.length) % slides.length) s.classList.add('exit');
+      });
+      dotsEl.querySelectorAll('.wx-dot').forEach((d,i) => {
+        d.classList.toggle('on', i === idx);
+      });
+    }
+    showSlide(0);
+    window._wxSlideTimer = setInterval(() => {
+      wxIdx = (wxIdx + 1) % slides.length;
+      showSlide(wxIdx);
+    }, 3500);
+  } catch(e) {
+    document.getElementById('wx-desc').textContent = 'WX ERROR';
+    console.error('Weather fetch failed:', e);
+  }
+}
+fetchWeather();
+setInterval(fetchWeather, 10*60*1000); // refresh every 10 min
+
+// ─── RSS FEEDS ────────────────────────────────────────────────────────────
+// Direct XML fetch via allorigins.win CORS proxy — no API key, no quotas
+
+const FEEDS = {
+  usnews: {
+    el: 'feed-usnews',
+    urls: [
+      'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',
+      'https://feeds.skynews.com/feeds/rss/world.xml',
+      'https://abcnews.go.com/abcnews/topstories'
+    ],
+    label: 'NYT / Sky / ABC'
+  },
+  security: {
+    el: 'feed-security',
+    urls: [
+      'https://thehackernews.com/feeds/posts/default',
+      'https://www.darkreading.com/rss.xml',
+      'https://www.cisa.gov/news.xml'
+    ],
+    label: 'THN / DarkReading / CISA'
+  },
+  tech: {
+    el: 'feed-tech',
+    urls: [
+      'https://rss.slashdot.org/Slashdot/slashdotMain',
+      'https://www.techmeme.com/feed.xml',
+      'https://hnrss.org/frontpage'
+    ],
+    label: 'Slashdot / Techmeme / HN'
+  },
+  local: {
+    el: 'feed-local',
+    urls: [
+      'https://news.google.com/rss/search?q=kalamazoo+michigan&hl=en-US&gl=US&ceid=US:en',
+      'https://news.google.com/rss/search?q=michigan+news&hl=en-US&gl=US&ceid=US:en'
+    ],
+    label: 'Google News · Kalamazoo/MI'
+  }
+};
+
+// Two CORS proxies with automatic fallback
+const PROXIES = [
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+];
+
+async function fetchWithFallback(rssUrl) {
+  for(const proxyFn of PROXIES) {
+    try {
+      const r = await fetch(proxyFn(rssUrl), { cache: 'no-store' });
+      if(!r.ok) continue;
+      const ct = r.headers.get('content-type') || '';
+      // allorigins returns JSON wrapper; corsproxy.io returns raw XML
+      if(ct.includes('json')) {
+        const wrapper = await r.json();
+        if(wrapper.contents) return wrapper.contents;
+      } else {
+        const text = await r.text();
+        if(text && text.includes('<')) return text;
+      }
+    } catch(e) {
+      console.warn(`Proxy failed for ${rssUrl}:`, e.message);
+    }
+  }
+  return null;
+}
+
+function timeAgo(dateStr) {
+  if(!dateStr) return '';
+  const dt = new Date(dateStr);
+  if(isNaN(dt)) return '';
+  const diff = Math.floor((Date.now() - dt)/1000);
+  if(diff < 60) return `${diff}s ago`;
+  if(diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if(diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+function stripHtml(html) {
+  if(!html) return '';
+  return html.replace(/<!\[CDATA\[|\]\]>/g,'')
+             .replace(/<[^>]*>/g,'')
+             .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+             .replace(/&#039;/g,"'").replace(/&quot;/g,'"').replace(/&apos;/g,"'")
+             .replace(/&#8217;/g,"'").replace(/&#8220;/g,'"').replace(/&#8221;/g,'"')
+             .trim();
+}
+
+// Parse raw RSS/Atom XML text into item array
+function parseRSS(xmlText, sourceHint) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'text/xml');
+  const items = [];
+  const nodes = doc.querySelectorAll('item, entry');
+  const feedTitle = stripHtml(doc.querySelector('channel > title, feed > title')?.textContent || sourceHint);
+  nodes.forEach(node => {
+    const title = stripHtml(node.querySelector('title')?.textContent || '');
+    const link = node.querySelector('link')?.textContent ||
+                 node.querySelector('link')?.getAttribute('href') || '';
+    const pubDate = node.querySelector('pubDate')?.textContent ||
+                    node.querySelector('updated')?.textContent ||
+                    node.querySelector('published')?.textContent || '';
+    if(title) items.push({ title, link, pubDate, source: feedTitle });
+  });
+  return items;
+}
+
+let feedLoaded = 0;
+
+async function fetchFeed(key) {
+  const cfg = FEEDS[key];
+  const el = document.getElementById(cfg.el);
+  let allItems = [];
+
+  for(const rssUrl of cfg.urls) {
+    try {
+      const xmlText = await fetchWithFallback(rssUrl);
+      if(!xmlText) throw new Error('all proxies failed');
+      const items = parseRSS(xmlText, rssUrl.split('/')[2]);
+      allItems = allItems.concat(items);
+    } catch(e) {
+      console.warn(`Feed ${rssUrl} failed:`, e.message);
+    }
+  }
+
+  // Sort newest-first, dedupe by title prefix
+  allItems.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+  const seen = new Set();
+  allItems = allItems.filter(item => {
+    const k = item.title.slice(0,50).toLowerCase();
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  feedLoaded++;
+  document.getElementById('tb-feeds').textContent = `${feedLoaded}/4`;
+
+  if(allItems.length === 0) {
+    el.innerHTML = `<div class="feed-status">NO DATA · ${cfg.label}<br><span style="font-size:8px;color:#554">Press F12 → Console for details</span></div>`;
+    return;
+  }
+
+  renderFeed(el, allItems, key);
+}
+
+function renderFeed(el, items, key) {
+  const isAlert = key === 'security';
+  let html = '';
+  for(const item of items) {
+    const ago = timeAgo(item.pubDate);
+    const src = item.source ? item.source.toUpperCase().slice(0,20) : '';
+    const badge = isAlert ? '<span class="alert-badge">ALERT</span>' : '';
+    const href = item.link ? item.link.trim() : '#';
+    // Open in new window positioned on primary monitor, not this HUD display
+    html += `<a class="feed-item" href="${href}" target="_blank" rel="noopener noreferrer"
+      onclick="window.open('${href.replace(/'/g,"\'")}','_blank','noopener,noreferrer'); return false;">
+      <div class="feed-item-title">${badge}${item.title}</div>
+      <div class="feed-item-meta">
+        <span class="feed-item-source">${src}</span>
+        <span>${ago}</span>
+      </div>
+    </a>`;
+  }
+
+  const scrollDiv = document.createElement('div');
+  scrollDiv.className = 'feed-scroll';
+  scrollDiv.innerHTML = html;
+  el.innerHTML = '';
+  el.appendChild(scrollDiv);
+
+  // Auto-scroll
+  startAutoScroll(el, scrollDiv);
+}
+
+function startAutoScroll(container, scroller) {
+  // Calculate how many items fit in the visible area
+  const viewH = container.clientHeight;
+  const totalH = scroller.scrollHeight;
+  if(totalH <= viewH) return; // everything fits, no paging needed
+
+  // Figure out item height from first child
+  const firstItem = scroller.querySelector('.feed-item');
+  const itemH = firstItem ? firstItem.offsetHeight : 54;
+  const itemsPerPage = Math.max(1, Math.floor(viewH / itemH));
+  const pageH = itemsPerPage * itemH;
+
+  let page = 0;
+  const maxPages = Math.ceil(totalH / pageH);
+
+  function flipPage() {
+    page = (page + 1) % maxPages;
+    const pos = page * pageH;
+    scroller.style.transition = 'transform 0.8s cubic-bezier(0.4,0,0.2,1)';
+    scroller.style.transform = `translateY(-${Math.min(pos, totalH - viewH)}px)`;
+  }
+
+  // Pause on hover
+  let paused = false;
+  container.addEventListener('mouseenter', () => { paused = true; });
+  container.addEventListener('mouseleave', () => { paused = false; });
+
+  setInterval(() => { if(!paused) flipPage(); }, SCROLL_INTERVAL_MS);
+}
+
+// Load all feeds
+Object.keys(FEEDS).forEach(key => {
+  setTimeout(() => fetchFeed(key), Math.random()*500);
+});
+
+// Refresh feeds every 5 minutes
+setInterval(() => {
+  feedLoaded = 0;
+  Object.keys(FEEDS).forEach(key => fetchFeed(key));
+}, 1*60*1000);
+
+// Update feed status bar
+document.getElementById('tb-status').textContent = 'NOMINAL';
+</script>
+</body>
+</html>
