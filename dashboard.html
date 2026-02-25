@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
-<title>HUD // MIR TAC DASHBOARD</title>
+<title>MIR // TACTICAL HUD</title>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
 
@@ -479,7 +480,7 @@
   <div class="panel" id="panel-weather">
     <div class="panel-header">
       <span class="icon">◉</span>
-      <span class="label" style="color:var(--cyan)">ENVIRON // KZOO</span>
+      <span class="label" id="wx-location-label" style="color:var(--cyan);cursor:pointer;user-select:none" onclick="showLocationPicker()" title="Click to change location">ENVIRON // KZOO ▾</span>
       <span class="dot dot-cyan"></span>
     </div>
     <div class="panel-body">
@@ -601,8 +602,124 @@ updateClock();
 
 // ─── WEATHER ─────────────────────────────────────────────────────────────
 // Kalamazoo, MI coords
-const WX_LAT = 42.2917;
-const WX_LON = -85.5872;
+// ── Weather location system ─────────────────────────────────────────────
+const WX_PRESETS = [
+  { name: "KALAMAZOO, MI",   lat: 42.2917, lon: -85.5872, tz: "America/Chicago"  },
+  { name: "DETROIT, MI",     lat: 42.3314, lon: -83.0458, tz: "America/Detroit"  },
+  { name: "LANSING, MI",     lat: 42.7325, lon: -84.5555, tz: "America/Detroit"  },
+  { name: "CHICAGO, IL",     lat: 41.8781, lon: -87.6298, tz: "America/Chicago"  },
+  { name: "NEW YORK, NY",    lat: 40.7128, lon: -74.0060, tz: "America/New_York" },
+  { name: "WASHINGTON, DC",  lat: 38.9072, lon: -77.0369, tz: "America/New_York" },
+  { name: "AUTO (GPS)",      lat: null,    lon: null,     tz: null               },
+];
+
+let WX_LAT  = 42.2917;
+let WX_LON  = -85.5872;
+let WX_TZ   = "America/Chicago";
+let WX_NAME = "KZOO";
+
+function initWeatherLocation() {
+  // Try to restore saved location from sessionStorage
+  try {
+    const saved = sessionStorage.getItem("wx_location");
+    if (saved) {
+      const loc = JSON.parse(saved);
+      WX_LAT = loc.lat; WX_LON = loc.lon; WX_TZ = loc.tz; WX_NAME = loc.name;
+      updateWxLabel();
+      return;
+    }
+  } catch(e) {}
+
+  // Auto-detect via browser geolocation on first load
+  if(navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        WX_LAT  = pos.coords.latitude;
+        WX_LON  = pos.coords.longitude;
+        WX_TZ   = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago";
+        WX_NAME = "GPS";
+        updateWxLabel();
+        saveWxLocation();
+        fetchWeather();
+      },
+      err => {
+        // Permission denied or unavailable — use Kalamazoo default silently
+        console.log("Geolocation unavailable, using default:", err.message);
+      },
+      { timeout: 5000, maximumAge: 300000 }
+    );
+  }
+}
+
+function saveWxLocation() {
+  try {
+    sessionStorage.setItem("wx_location", JSON.stringify({
+      lat: WX_LAT, lon: WX_LON, tz: WX_TZ, name: WX_NAME
+    }));
+  } catch(e) {}
+}
+
+function updateWxLabel() {
+  const el = document.getElementById("wx-location-label");
+  if(el) el.textContent = "ENVIRON // " + WX_NAME;
+}
+
+function showLocationPicker() {
+  // Build picker overlay
+  let existing = document.getElementById("wx-picker");
+  if(existing) { existing.remove(); return; }
+
+  const overlay = document.createElement("div");
+  overlay.id = "wx-picker";
+  overlay.style.cssText = `
+    position:fixed; top:30px; left:10px; z-index:9999;
+    background:#000; border:1px solid var(--cyan);
+    border-radius:4px; padding:10px 0; min-width:200px;
+    box-shadow: 0 0 20px rgba(0,229,255,0.3);
+    font-family:'Orbitron',monospace;
+  `;
+
+  WX_PRESETS.forEach((preset, i) => {
+    const item = document.createElement("div");
+    item.style.cssText = `
+      padding:6px 16px; cursor:pointer; font-size:10px;
+      letter-spacing:1px; color: var(--cyan);
+      transition: background 0.15s;
+    `;
+    item.textContent = preset.name;
+    item.onmouseenter = () => item.style.background = "rgba(0,229,255,0.1)";
+    item.onmouseleave = () => item.style.background = "";
+    item.onclick = () => {
+      if(preset.lat === null) {
+        // GPS option
+        if(navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            WX_LAT  = pos.coords.latitude;
+            WX_LON  = pos.coords.longitude;
+            WX_TZ   = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago";
+            WX_NAME = "GPS";
+            updateWxLabel(); saveWxLocation(); fetchWeather();
+          }, err => alert("Location access denied: " + err.message));
+        }
+      } else {
+        WX_LAT  = preset.lat;
+        WX_LON  = preset.lon;
+        WX_TZ   = preset.tz;
+        WX_NAME = preset.name.split(",")[0];
+        updateWxLabel(); saveWxLocation(); fetchWeather();
+      }
+      overlay.remove();
+    };
+    overlay.appendChild(item);
+  });
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener("click", function close(e) {
+    if(!overlay.contains(e.target)) { overlay.remove(); document.removeEventListener("click", close); }
+  }), 100);
+
+  document.body.appendChild(overlay);
+}
 
 const WMO_CODES = {
   0:'☀️',1:'🌤️',2:'⛅',3:'☁️',
@@ -626,7 +743,8 @@ const WMO_DESC = {
 async function fetchWeather() {
   try {
     // forecast_days=8 gives today + 7 future days; we skip index 0 (today) for the forecast row
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago&forecast_days=8`;
+    const tz  = encodeURIComponent(WX_TZ || "America/Chicago");
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=${tz}&forecast_days=8`;
     const r = await fetch(url);
     const d = await r.json();
     const c = d.current;
@@ -816,6 +934,7 @@ async function fetchWeather() {
     console.error('Weather fetch failed:', e);
   }
 }
+initWeatherLocation();
 fetchWeather();
 setInterval(fetchWeather, 10*60*1000); // refresh every 10 min
 
