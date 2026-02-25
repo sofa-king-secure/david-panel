@@ -191,18 +191,24 @@
     margin-top: 1px;
   }
   #clock-gmt {
-    font-size: 8px;
-    color: #1a3a1a;
-    letter-spacing: 2px;
-    margin-top: 4px;
+    font-size: 12px;
+    color: #4a9a8a;
+    letter-spacing: 3px;
+    margin-top: 8px;
     font-family: 'Share Tech Mono', monospace;
   }
-  #uptime {
-    font-size: 9px;
-    color: var(--dim);
-    margin-top: 4px;
-    letter-spacing: 1px;
+  #clock-suninfo {
+    display: flex;
+    gap: 14px;
+    margin-top: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    justify-content: center;
   }
+  #clock-sunrise { color: #cc7700; text-shadow: 0 0 8px rgba(200,120,0,0.5); }
+  #clock-sunset  { color: #cc4400; text-shadow: 0 0 8px rgba(200,60,0,0.4); }
+
 
   /* ===== WEATHER PANEL ===== */
   #panel-weather .panel-header .label { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
@@ -469,7 +475,11 @@
         <div id="clock-day">-------</div>
         <div id="clock-date">--- -- · ----</div>
         <div id="clock-gmt">GMT --:--</div>
-        <div id="uptime">SESSION: <span id="uptime-val">00:00:00</span></div>
+        <div id="clock-suninfo">
+          <span id="clock-sunrise">↑ --:--</span>
+          <span id="clock-sunset">↓ --:--</span>
+        </div>
+
       </div>
     </div>
     <div class="corner-tl"></div>
@@ -568,7 +578,7 @@
 const SCROLL_INTERVAL_MS = 60000; // 60 seconds — full page flip
 // ─────────────────────────────────────────────────────────────────────────
 
-const startTime = Date.now();
+
 const DAYS = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
@@ -591,11 +601,7 @@ function updateClock() {
   document.getElementById('clock-gmt').textContent = `GMT ${gH}:${gM}`;
   document.getElementById('tb-time').textContent = `${h12}:${m}:${s} ${ampm}`;
 
-  const elapsed = Math.floor((Date.now() - startTime)/1000);
-  const eh = String(Math.floor(elapsed/3600)).padStart(2,'0');
-  const em = String(Math.floor((elapsed%3600)/60)).padStart(2,'0');
-  const es = String(elapsed%60).padStart(2,'0');
-  document.getElementById('uptime-val').textContent = `${eh}:${em}:${es}`;
+
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -641,6 +647,12 @@ function initWeatherLocation() {
         updateWxLabel();
         saveWxLocation();
         fetchWeather();
+        // Reverse geocode to get city name
+        reverseGeocode(WX_LAT, WX_LON, name => {
+          WX_NAME = name;
+          updateWxLabel();
+          saveWxLocation();
+        });
       },
       err => {
         // Permission denied or unavailable — use Kalamazoo default silently
@@ -657,6 +669,21 @@ function saveWxLocation() {
       lat: WX_LAT, lon: WX_LON, tz: WX_TZ, name: WX_NAME
     }));
   } catch(e) {}
+}
+
+function reverseGeocode(lat, lon, callback) {
+  // Uses Open-Meteo's geocoding companion: nominatim (OSM) — free, no key
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+  fetch(url, { headers: { "Accept-Language": "en" } })
+    .then(r => r.json())
+    .then(data => {
+      const addr = data.address || {};
+      // Pick most useful short label: city > town > village > county
+      const city = addr.city || addr.town || addr.village || addr.county || addr.state || "GPS";
+      // Uppercase and trim to ~12 chars so it fits the label
+      callback(city.toUpperCase().substring(0, 12));
+    })
+    .catch(() => callback("GPS")); // silent fallback
 }
 
 function updateWxLabel() {
@@ -699,6 +726,9 @@ function showLocationPicker() {
             WX_TZ   = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago";
             WX_NAME = "GPS";
             updateWxLabel(); saveWxLocation(); fetchWeather();
+            reverseGeocode(WX_LAT, WX_LON, name => {
+              WX_NAME = name; updateWxLabel(); saveWxLocation();
+            });
           }, err => alert("Location access denied: " + err.message));
         }
       } else {
@@ -744,11 +774,23 @@ async function fetchWeather() {
   try {
     // forecast_days=8 gives today + 7 future days; we skip index 0 (today) for the forecast row
     const tz  = encodeURIComponent(WX_TZ || "America/Chicago");
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=${tz}&forecast_days=8`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=${tz}&forecast_days=8`;
     const r = await fetch(url);
     const d = await r.json();
     const c = d.current;
     const daily = d.daily;
+
+    // ── Sunrise / Sunset ──────────────────────────────────────────────────
+    if (daily.sunrise && daily.sunrise[0]) {
+      const fmtSun = iso => {
+        const d = new Date(iso);
+        let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+        h = h % 12 || 12;
+        return `${h}:${m}`;
+      };
+      document.getElementById('clock-sunrise').textContent = `↑ ${fmtSun(daily.sunrise[0])}`;
+      document.getElementById('clock-sunset').textContent  = `↓ ${fmtSun(daily.sunset[0])}`;
+    }
 
     // current conditions — new API uses weather_code (not weathercode)
     const curCode = c.weather_code ?? c.weathercode ?? 0;
