@@ -246,43 +246,64 @@
 
   /* ===== WEATHER PANEL ===== */
   #panel-weather .panel-header .label { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  /* ── WEATHER PANEL — 50/50 split ─────────────────────────────────── */
   #weather-body {
-    padding: 5px 8px 4px;
+    padding: 0;
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 4px;
     overflow: hidden;
   }
+
+  /* TOP HALF — current conditions */
   #weather-current {
+    flex: 0 0 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+  }
+  #wx-current-top {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
   }
-  .wx-icon { font-size: 35px; line-height: 1; filter: drop-shadow(0 0 6px rgba(0,229,255,0.5)); }
+  .wx-icon { font-size: 52px; line-height: 1; filter: drop-shadow(0 0 10px rgba(0,229,255,0.6)); }
   .wx-temp {
     font-family: 'Orbitron', monospace;
-    font-size: 38px;
-    font-weight: 700;
+    font-size: 56px;
+    font-weight: 900;
     color: var(--cyan);
-    text-shadow: 0 0 12px var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
     line-height: 1;
   }
-  .wx-info { font-size: 11px; color: var(--white); line-height: 1.6; }
-  .wx-info .wx-desc { color: var(--cyan); font-size: 12px; font-weight: 600; }
+  .wx-info {
+    font-size: 15px;
+    color: var(--white);
+    line-height: 1.8;
+    text-align: center;
+    width: 100%;
+  }
+  .wx-info .wx-desc {
+    color: var(--cyan);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0,229,255,0.4);
+  }
 
-  /* Forecast slideshow */
+  /* BOTTOM HALF — forecast slideshow */
   #wx-slideshow-wrap {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 50%;
     position: relative;
     overflow: hidden;
-    border: 1px solid var(--cyan-dim);
-    border-radius: 3px;
-    background: rgba(0,229,255,0.03);
+    border-top: none;
+    background: rgba(0,229,255,0.02);
   }
   .wx-slide {
     position: absolute;
@@ -291,8 +312,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 4px 6px;
+    gap: 4px;
+    padding: 6px 8px 18px;
     opacity: 0;
     transform: translateX(60px);
     transition: opacity 0.5s ease, transform 0.5s ease;
@@ -309,13 +330,13 @@
   }
   .wx-slide-dayname {
     font-family: 'Orbitron', monospace;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--cyan);
     text-shadow: 0 0 8px var(--cyan);
-    letter-spacing: 3px;
+    letter-spacing: 4px;
   }
-  .wx-slide-icon { font-size: 45px; line-height: 1; filter: drop-shadow(0 0 8px rgba(0,229,255,0.4)); }
+  .wx-slide-icon { font-size: 52px; line-height: 1; filter: drop-shadow(0 0 10px rgba(0,229,255,0.4)); }
   .wx-slide-temps {
     display: flex;
     align-items: baseline;
@@ -323,37 +344,37 @@
   }
   .wx-slide-hi {
     font-family: 'Orbitron', monospace;
-    font-size: 28px;
+    font-size: 36px;
     font-weight: 900;
     color: var(--amber);
-    text-shadow: 0 0 10px var(--amber);
+    text-shadow: 0 0 12px var(--amber);
   }
   .wx-slide-lo {
     font-family: 'Orbitron', monospace;
-    font-size: 17px;
+    font-size: 22px;
     color: var(--dim);
   }
   .wx-slide-desc {
-    font-size: 12px;
+    font-size: 15px;
     color: var(--white);
     letter-spacing: 1px;
     text-align: center;
   }
   .wx-slide-pp {
-    font-size: 12px;
+    font-size: 15px;
     color: #5599ff;
     letter-spacing: 1px;
   }
   .wx-slide-dots {
     position: absolute;
-    bottom: 3px;
+    bottom: 4px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 4px;
+    gap: 5px;
   }
   .wx-dot {
-    width: 4px; height: 4px;
+    width: 5px; height: 5px;
     border-radius: 50%;
     background: var(--cyan-dim);
     transition: background 0.3s;
@@ -541,12 +562,14 @@
     <div class="panel-body">
       <div id="weather-body">
         <div id="weather-current">
-          <div class="wx-icon" id="wx-icon">⟳</div>
-          <div class="wx-temp" id="wx-temp">--°</div>
+          <div id="wx-current-top">
+            <div class="wx-icon" id="wx-icon">⟳</div>
+            <div class="wx-temp" id="wx-temp">--°</div>
+          </div>
           <div class="wx-info">
             <div class="wx-desc" id="wx-desc">LOADING</div>
-            <div>WIND: <span id="wx-wind">--</span> mph</div>
-            <div>HUM: <span id="wx-hum">--</span>% · FEELS: <span id="wx-feels">--</span>°</div>
+            <div>WIND: <span id="wx-wind">--</span> mph &nbsp;|&nbsp; HUM: <span id="wx-hum">--</span>%</div>
+            <div>FEELS LIKE: <span id="wx-feels">--</span>°</div>
           </div>
         </div>
         <div id="wx-slideshow-wrap">
