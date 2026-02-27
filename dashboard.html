@@ -143,71 +143,105 @@
 
   /* ===== CLOCK PANEL ===== */
   #panel-clock .panel-header .label { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  /* ── CLOCK PANEL — 220px wide × ~400px tall ─────────────────────────── */
   #clock-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    padding: 0;
+  }
+
+  /* Zone 1: BIG TIME — takes ~45% of height */
+  #clock-zone-time {
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    padding: 4px 4px;
+    padding: 18px 8px 10px;
+    border-bottom: 1px solid var(--border);
   }
   #clock-time {
     font-family: 'Orbitron', monospace;
-    font-size: 52px;
+    font-size: 70px;
     font-weight: 900;
     color: var(--green);
-    text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim);
-    letter-spacing: 2px;
+    text-shadow: 0 0 30px var(--green), 0 0 60px rgba(0,255,65,0.3);
+    letter-spacing: -3px;
     line-height: 1;
-  }
-  #clock-secs {
-    font-family: 'Orbitron', monospace;
-    font-size: 20px;
-    color: var(--green-dim);
-    letter-spacing: 3px;
-    margin-top: 2px;
-  }
-  #clock-date {
-    font-size: 13px;
-    color: var(--green-dim);
-    letter-spacing: 3px;
-    margin-top: 4px;
     text-align: center;
-  }
-  #clock-day {
-    font-family: 'Orbitron', monospace;
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--amber);
-    letter-spacing: 4px;
-    margin-top: 2px;
+    width: 100%;
   }
   #clock-ampm {
     font-family: 'Orbitron', monospace;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 32px;
+    font-weight: 900;
     color: var(--green-dim);
-    letter-spacing: 4px;
-    margin-top: 1px;
+    letter-spacing: 10px;
+    margin-top: 4px;
+    text-align: center;
+    width: 100%;
+    text-shadow: 0 0 12px rgba(0,255,65,0.3);
+  }
+
+  /* Zone 2: DAY + DATE — middle band */
+  #clock-zone-date {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+  }
+  #clock-day {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: 6px;
+    text-shadow: 0 0 16px rgba(255,179,0,0.7);
+  }
+  #clock-date {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 17px;
+    color: #8aba8a;
+    letter-spacing: 3px;
+    text-align: center;
+    text-shadow: 0 0 8px rgba(0,255,65,0.3);
+  }
+
+  /* Zone 3: GMT + SUN — bottom band, fills remaining space */
+  #clock-zone-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    gap: 14px;
   }
   #clock-gmt {
-    font-size: 13px;
-    color: #4a9a8a;
-    letter-spacing: 3px;
-    margin-top: 6px;
     font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    color: #5abfaa;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(74,154,138,0.6);
   }
   #clock-suninfo {
     display: flex;
-    gap: 16px;
-    margin-top: 6px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 2px;
-    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    align-items: center;
   }
-  #clock-sunrise { color: #cc7700; text-shadow: 0 0 8px rgba(200,120,0,0.5); }
-  #clock-sunset  { color: #cc4400; text-shadow: 0 0 8px rgba(200,60,0,0.4); }
+  #clock-sunrise { color: #ffaa00; text-shadow: 0 0 12px rgba(255,170,0,0.6); }
+  #clock-sunset  { color: #ff6600; text-shadow: 0 0 12px rgba(255,100,0,0.6); }
 
 
   /* ===== WEATHER PANEL ===== */
@@ -469,15 +503,26 @@
     </div>
     <div class="panel-body">
       <div id="clock-main">
-        <div id="clock-time">--:--</div>
-        <div id="clock-ampm">--</div>
-        <div id="clock-secs">:--</div>
-        <div id="clock-day">-------</div>
-        <div id="clock-date">--- -- · ----</div>
-        <div id="clock-gmt">GMT --:--</div>
-        <div id="clock-suninfo">
-          <span id="clock-sunrise">↑ --:--</span>
-          <span id="clock-sunset">↓ --:--</span>
+
+        <!-- Zone 1: Time -->
+        <div id="clock-zone-time">
+          <div id="clock-time">--:--</div>
+          <div id="clock-ampm">--</div>
+        </div>
+
+        <!-- Zone 2: Day + Date -->
+        <div id="clock-zone-date">
+          <div id="clock-day">-------</div>
+          <div id="clock-date">--- -- · ----</div>
+        </div>
+
+        <!-- Zone 3: GMT + Sun -->
+        <div id="clock-zone-meta">
+          <div id="clock-gmt">GMT --:--</div>
+          <div id="clock-suninfo">
+            <span id="clock-sunrise">↑ --:--</span>
+            <span id="clock-sunset">↓ --:--</span>
+          </div>
         </div>
 
       </div>
@@ -595,7 +640,6 @@ function updateClock() {
 
   document.getElementById('clock-time').textContent = `${h12}:${m}`;
   document.getElementById('clock-ampm').textContent = ampm;
-  document.getElementById('clock-secs').textContent = `:${s}`;
   document.getElementById('clock-day').textContent = DAYS[now.getDay()];
   document.getElementById('clock-date').textContent = `${MONTHS[now.getMonth()]} ${String(now.getDate()).padStart(2,'0')} · ${now.getFullYear()}`;
   document.getElementById('clock-gmt').textContent = `GMT ${gH}:${gM}`;
