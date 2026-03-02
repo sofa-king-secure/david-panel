@@ -120,4 +120,4 @@ If you need 100% offline capability:
 
 ---
 
-*DTMB-MCS Tactical HUD · Kalamazoo, MI*
+*MIR Tactical HUD · Kalamazoo, MI*
