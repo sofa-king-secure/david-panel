@@ -198,11 +198,16 @@
   }
   #clock-day {
     font-family: 'Orbitron', monospace;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--amber);
-    letter-spacing: 6px;
+    letter-spacing: 2px;
     text-shadow: 0 0 16px rgba(255,179,0,0.7);
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
   }
   #clock-date {
     font-family: 'Share Tech Mono', monospace;
