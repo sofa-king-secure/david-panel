@@ -170,4 +170,4 @@ python D:\git_manager.py --push --project david-panel
 
 ---
 
-*MIR // TACTICAL HUD · Built with Claude · sofa-king-secure/david-panel*
+*MIR // TACTICAL HUD · sofa-king-secure/david-panel*
