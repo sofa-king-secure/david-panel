@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>MIR // TACTICAL HUD</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width: 1920px;
+    height: 440px;
+    overflow: hidden;
+    background: #000;
+    cursor: none;
+  }
+
+  /* Each frame fills the entire window */
+  .hud-frame {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1920px;
+    height: 440px;
+    border: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+  }
+  .hud-frame.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Transition overlay flash — gives a "switching" feel */
+  #transition-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+    transition: opacity 0.4s ease;
+  }
+  #transition-overlay.flash {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+  <div id="transition-overlay"></div>
+
+  <!-- Frame 1: Main HUD -->
+  <iframe
+    id="frame-hud"
+    class="hud-frame visible"
+    src="dashboard.html"
+    scrolling="no">
+  </iframe>
+
+  <!-- Frame 2: Radar -->
+  <iframe
+    id="frame-radar"
+    class="hud-frame"
+    src="radar.html"
+    scrolling="no">
+  </iframe>
+
+<script>
+  // ── Cycle config ─────────────────────────────────────────────────────────
+  const PAGES = [
+    { id: 'frame-hud',   duration: 5 * 60 * 1000 },  // 5 min on HUD
+    { id: 'frame-radar', duration: 3 * 60 * 1000 },  // 3 min on radar
+  ];
+
+  let current = 0;
+  const overlay = document.getElementById('transition-overlay');
+
+  function switchTo(index) {
+    const from = document.getElementById(PAGES[current].id);
+    const to   = document.getElementById(PAGES[index].id);
+
+    // Flash to black
+    overlay.classList.add('flash');
+
+    setTimeout(() => {
+      from.classList.remove('visible');
+      to.classList.add('visible');
+      current = index;
+
+      // Fade back in
+      setTimeout(() => overlay.classList.remove('flash'), 100);
+    }, 400);
+  }
+
+  function cycle() {
+    const next = (current + 1) % PAGES.length;
+    switchTo(next);
+    // Schedule next switch
+    setTimeout(cycle, PAGES[next].duration);
+  }
+
+  // Start first cycle after initial HUD duration
+  setTimeout(cycle, PAGES[0].duration);
+</script>
+
+</body>
+</html>

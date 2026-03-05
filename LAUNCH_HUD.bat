@@ -11,13 +11,13 @@ echo  [*] Target: 1920x440 bar display
 echo  [*] Mode: App window, no browser chrome
 echo.
 
-:: ── Locate dashboard.html (same folder as this .bat) ──────────────────────
+:: ── Locate hud_controller.html (same folder as this .bat) ──────────────────────
 set "SCRIPT_DIR=%~dp0"
-set "HTML_FILE=%SCRIPT_DIR%dashboard.html"
+set "HTML_FILE=%SCRIPT_DIR%hud_controller.html"
 
 if not exist "%HTML_FILE%" (
-  echo  [ERROR] dashboard.html not found at: %HTML_FILE%
-  echo  Place this .bat in the same folder as dashboard.html
+  echo  [ERROR] hud_controller.html not found at: %HTML_FILE%
+  echo  Place this .bat in the same folder as hud_controller.html
   pause
   exit /b 1
 )
