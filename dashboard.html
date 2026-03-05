@@ -1059,56 +1059,67 @@ const FEEDS = {
   usnews: {
     el: 'feed-usnews',
     urls: [
+      'https://feeds.bbci.co.uk/news/world/rss.xml',
+      'https://feeds.npr.org/1001/rss.xml',
       'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',
-      'https://feeds.skynews.com/feeds/rss/world.xml',
-      'https://abcnews.go.com/abcnews/topstories'
     ],
-    label: 'NYT / Sky / ABC'
+    label: 'BBC / NPR / NYT'
   },
   security: {
     el: 'feed-security',
     urls: [
       'https://thehackernews.com/feeds/posts/default',
-      'https://www.darkreading.com/rss.xml',
-      'https://www.cisa.gov/news.xml'
+      'https://feeds.feedburner.com/TheHackersNews',
+      'https://www.cisa.gov/news.xml',
     ],
-    label: 'THN / DarkReading / CISA'
+    label: 'THN / CISA'
   },
   tech: {
     el: 'feed-tech',
     urls: [
+      'https://hnrss.org/frontpage',
       'https://rss.slashdot.org/Slashdot/slashdotMain',
-      'https://www.techmeme.com/feed.xml',
-      'https://hnrss.org/frontpage'
+      'https://feeds.arstechnica.com/arstechnica/index',
     ],
-    label: 'Slashdot / Techmeme / HN'
+    label: 'HN / Slashdot / Ars'
   },
   local: {
     el: 'feed-local',
     urls: [
       'https://news.google.com/rss/search?q=kalamazoo+michigan&hl=en-US&gl=US&ceid=US:en',
-      'https://news.google.com/rss/search?q=michigan+news&hl=en-US&gl=US&ceid=US:en'
+      'https://news.google.com/rss/search?q=michigan+news&hl=en-US&gl=US&ceid=US:en',
     ],
     label: 'Google News · Kalamazoo/MI'
   }
 };
 
-// Two CORS proxies with automatic fallback
+// CORS proxies — tried in order until one works
+// These all support null/file:// origin
 const PROXIES = [
-  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+  // rss2json: JSON response, works from file://, free tier 10k/day
+  { type: 'rss2json', fn: url => `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=20` },
+  // rssbridge via another public proxy
+  { type: 'rss2json', fn: url => `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&count=20&api_key=` },
+  // public CORS proxy that allows null origin
+  { type: 'raw',      fn: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` },
+  // another fallback
+  { type: 'raw',      fn: url => `https://thingproxy.freeboard.io/fetch/${url}` },
 ];
 
 async function fetchWithFallback(rssUrl) {
-  for(const proxyFn of PROXIES) {
+  for(const proxy of PROXIES) {
     try {
-      const r = await fetch(proxyFn(rssUrl), { cache: 'no-store' });
+      const r = await fetch(proxy.fn(rssUrl), { cache: 'no-store' });
       if(!r.ok) continue;
-      const ct = r.headers.get('content-type') || '';
-      // allorigins returns JSON wrapper; corsproxy.io returns raw XML
-      if(ct.includes('json')) {
-        const wrapper = await r.json();
-        if(wrapper.contents) return wrapper.contents;
+
+      if(proxy.type === 'rss2json') {
+        const data = await r.json();
+        if(data.status === 'ok' && data.items) {
+          // Convert rss2json format to XML-like string for existing parser
+          // Actually return a special marker so we handle it directly
+          return { _rss2json: true, items: data.items, feed: data.feed };
+        }
+        continue;
       } else {
         const text = await r.text();
         if(text && text.includes('<')) return text;
@@ -1169,7 +1180,19 @@ async function fetchFeed(key) {
 
   for(const rssUrl of cfg.urls) {
     try {
-      const xmlText = await fetchWithFallback(rssUrl);
+      const fetchResult = await fetchWithFallback(rssUrl);
+      // Handle rss2json direct format
+      if(fetchResult && fetchResult._rss2json) {
+        const items = fetchResult.items.slice(0, cfg.maxItems || 8).map(item => ({
+          title: item.title || '',
+          link:  item.link  || item.guid || '#',
+          date:  item.pubDate || '',
+          source: fetchResult.feed?.title || cfg.label || ''
+        }));
+        renderFeed(cfg.elementId, items, cfg);
+        return;
+      }
+      const xmlText = fetchResult;
       if(!xmlText) throw new Error('all proxies failed');
       const items = parseRSS(xmlText, rssUrl.split('/')[2]);
       allItems = allItems.concat(items);

@@ -101,6 +101,15 @@
 
   // Start first cycle after initial HUD duration
   setTimeout(cycle, PAGES[0].duration);
+
+  // ── Hotkey: Space or → to manually advance to next page ─────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = (current + 1) % PAGES.length;
+      switchTo(next);
+    }
+  });
 </script>
 
 </body>
