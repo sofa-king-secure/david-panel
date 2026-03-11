@@ -13,8 +13,6 @@
     background: #000;
     cursor: none;
   }
-
-  /* Each frame fills the entire window */
   .hud-frame {
     position: absolute;
     top: 0; left: 0;
@@ -29,8 +27,6 @@
     opacity: 1;
     pointer-events: auto;
   }
-
-  /* Transition overlay flash — gives a "switching" feel */
   #transition-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -40,36 +36,20 @@
     z-index: 999;
     transition: opacity 0.4s ease;
   }
-  #transition-overlay.flash {
-    opacity: 1;
-  }
+  #transition-overlay.flash { opacity: 1; }
 </style>
 </head>
 <body>
 
   <div id="transition-overlay"></div>
 
-  <!-- Frame 1: Main HUD -->
-  <iframe
-    id="frame-hud"
-    class="hud-frame visible"
-    src="dashboard.html"
-    scrolling="no">
-  </iframe>
-
-  <!-- Frame 2: Radar -->
-  <iframe
-    id="frame-radar"
-    class="hud-frame"
-    src="radar.html"
-    scrolling="no">
-  </iframe>
+  <iframe id="frame-hud"   class="hud-frame visible" src="dashboard.html" scrolling="no"></iframe>
+  <iframe id="frame-radar" class="hud-frame"          src="radar.html"     scrolling="no"></iframe>
 
 <script>
-  // ── Cycle config ─────────────────────────────────────────────────────────
   const PAGES = [
-    { id: 'frame-hud',   duration: 5 * 60 * 1000 },  // 5 min on HUD
-    { id: 'frame-radar', duration: 3 * 60 * 1000 },  // 3 min on radar
+    { id: 'frame-hud',   duration: 5 * 60 * 1000 },
+    { id: 'frame-radar', duration: 3 * 60 * 1000 },
   ];
 
   let current = 0;
@@ -78,16 +58,11 @@
   function switchTo(index) {
     const from = document.getElementById(PAGES[current].id);
     const to   = document.getElementById(PAGES[index].id);
-
-    // Flash to black
     overlay.classList.add('flash');
-
     setTimeout(() => {
       from.classList.remove('visible');
       to.classList.add('visible');
       current = index;
-
-      // Fade back in
       setTimeout(() => overlay.classList.remove('flash'), 100);
     }, 400);
   }
@@ -95,14 +70,12 @@
   function cycle() {
     const next = (current + 1) % PAGES.length;
     switchTo(next);
-    // Schedule next switch
     setTimeout(cycle, PAGES[next].duration);
   }
 
-  // Start first cycle after initial HUD duration
   setTimeout(cycle, PAGES[0].duration);
 
-  // ── Hotkey: Space or → to manually advance to next page ─────────────────
+  // Hotkey: Space or → advances to next page
   document.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'ArrowRight') {
       e.preventDefault();

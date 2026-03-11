@@ -10,8 +10,8 @@
     height: 440px;
     overflow: hidden;
     background: #000;
-    font-family: 'Share Tech Mono', monospace;
   }
+
   #radar-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -23,31 +23,158 @@
     z-index: 10;
     border-bottom: 1px solid #0f2a0f;
   }
-  #radar-header .title { color: #00ff41; font-size: 11px; letter-spacing: 3px; }
-  #radar-header .hint  { color: #334433; font-size: 10px; letter-spacing: 1px; margin-left: auto; }
-  iframe {
+  .header-left  { color: #00ff41; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 3px; width: 960px; }
+  .header-right { color: #00ccff; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 3px; width: 960px; padding-left: 16px; border-left: 1px solid #1a3a1a; }
+  .hint { color: #334433; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; margin-left: auto; }
+
+  #divider {
+    position: fixed;
+    top: 24px; left: 960px;
+    width: 2px; height: 416px;
+    background: #1a3a1a;
+    z-index: 10;
+  }
+
+  /* LEFT — Windy iframe */
+  #pane-us {
     position: absolute;
     top: 24px; left: 0;
-    width: 1920px;
-    height: 416px;
+    width: 960px; height: 416px;
+    overflow: hidden;
+  }
+  #pane-us iframe {
+    width: 100%; height: 100%;
     border: none;
   }
+
+  /* RIGHT — IEM radar image, cropped to remove IEM header bar (~40px) */
+  #pane-mi {
+    position: absolute;
+    top: 24px; left: 962px;
+    width: 958px; height: 416px;
+    background: #111;
+    overflow: hidden;
+  }
+  /* The IEM image has ~40px header — shift up to hide it, clip with overflow:hidden */
+  #mi-radar-img {
+    position: absolute;
+    top: -40px; left: 0;
+    width: 958px;
+    height: calc(416px + 40px);
+    object-fit: cover;
+    object-position: top left;
+    display: block;
+  }
+  #mi-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 22px;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 12px;
+  }
+  #mi-timestamp { color: #00ff41; font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+  #mi-status    { color: #336633; font-family: 'Share Tech Mono', monospace; font-size: 10px; margin-left: auto; }
 </style>
 </head>
 <body>
+
   <div id="radar-header">
-    <span class="title">◈ MIR // RADAR · US NEXRAD COMPOSITE</span>
+    <span class="header-left">◈ US · NEXRAD COMPOSITE</span>
+    <span class="header-right">◈ MI · REGIONAL · NEXRAD</span>
     <span class="hint">SPACE / → RETURN TO HUD</span>
   </div>
 
-  <!--
-    Windy embed — official embed API, allows iframes, animated radar
-    Centered on Kalamazoo MI (42.29, -85.59), zoom 5 = US view
-    overlay=radar shows NEXRAD composite loop
-  -->
-  <iframe
-    src="https://embed.windy.com/embed2.html?lat=42.29&lon=-85.59&detailLat=42.29&detailLon=-85.59&width=1920&height=416&zoom=5&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
-    allowfullscreen>
-  </iframe>
+  <div id="divider"></div>
+
+  <!-- LEFT: Windy US national -->
+  <div id="pane-us">
+    <iframe
+      src="https://embed.windy.com/embed2.html?lat=39.5&lon=-96&detailLat=39.5&detailLon=-96&width=960&height=416&zoom=4&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <!-- RIGHT: IEM animated PNG loop — Michigan bbox -->
+  <div id="pane-mi">
+    <img id="mi-radar-img" src="" alt="">
+    <div id="mi-overlay">
+      <span id="mi-timestamp">LOADING...</span>
+      <span id="mi-status">IEM NEXRAD · MI</span>
+    </div>
+  </div>
+
+<script>
+// Michigan bounding box: west, south, east, north
+const MI_BBOX  = '-88,41,-82,47';
+const MI_W     = 958;
+const MI_H     = 456; // taller than pane so header gets cropped by offset
+const IEM_BASE = 'https://mesonet.agron.iastate.edu/GIS/radmap.php';
+
+const FRAME_COUNT       = 12;   // 1 hour of history
+const FRAME_INTERVAL_MS = 500;  // ms per frame
+const RELOAD_MS         = 5 * 60 * 1000;
+
+let frames = [], frameIdx = 0, animTimer = null;
+
+function iemUrl(dt) {
+  const ts = dt.getUTCFullYear()
+    + String(dt.getUTCMonth()+1).padStart(2,'0')
+    + String(dt.getUTCDate()).padStart(2,'0')
+    + String(dt.getUTCHours()).padStart(2,'0')
+    + String(Math.floor(dt.getUTCMinutes()/5)*5).padStart(2,'0');
+  return `${IEM_BASE}?layers[]=nexrad&layers[]=uscounties&layers[]=interstates`
+       + `&bbox=${MI_BBOX}&width=${MI_W}&height=${MI_H}&ts=${ts}&_=${Date.now()}`;
+}
+
+function buildFrameTimes() {
+  const base = new Date();
+  base.setUTCMinutes(Math.floor(base.getUTCMinutes()/5)*5, 0, 0);
+  const times = [];
+  for(let i = FRAME_COUNT - 1; i >= 0; i--)
+    times.push(new Date(base.getTime() - i * 5 * 60 * 1000));
+  return times;
+}
+
+function preloadFrames(cb) {
+  document.getElementById('mi-timestamp').textContent = 'LOADING...';
+  const times = buildFrameTimes();
+  const loaded = new Array(times.length);
+  let done = 0;
+  times.forEach((t, i) => {
+    const img = new Image();
+    img.onload = img.onerror = () => {
+      loaded[i] = { img, time: t };
+      if(++done === times.length) cb(loaded);
+    };
+    img.src = iemUrl(t);
+  });
+}
+
+function startAnimation(loaded) {
+  if(animTimer) clearInterval(animTimer);
+  frames = loaded; frameIdx = 0;
+  animTimer = setInterval(() => {
+    const f = frames[frameIdx];
+    if(f && f.img.complete && f.img.naturalWidth > 0) {
+      document.getElementById('mi-radar-img').src = f.img.src;
+      const t = f.time;
+      const h = t.getHours() % 12 || 12;
+      const m = String(t.getMinutes()).padStart(2,'0');
+      const ap = t.getHours() >= 12 ? 'PM' : 'AM';
+      document.getElementById('mi-timestamp').textContent = `${h}:${m} ${ap}`;
+    }
+    frameIdx = (frameIdx + 1) % frames.length;
+  }, FRAME_INTERVAL_MS);
+}
+
+function loadAndAnimate() { preloadFrames(startAnimation); }
+
+loadAndAnimate();
+setInterval(loadAndAnimate, RELOAD_MS);
+</script>
+
 </body>
 </html>
